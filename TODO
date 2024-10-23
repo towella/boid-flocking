@@ -1,4 +1,1 @@
-- Add a predator that the boids try to avoid that scatters the flock if it gets too close.
-- Add "perching" behavior. If a boid gets close to the bottom of the screen, have it land and hang out on the ground for
-a bit before taking off again and rejoining the flock.
 - Add chunk system
