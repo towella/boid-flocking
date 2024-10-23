@@ -37,7 +37,8 @@ class Level:
 
         # flock
         flock_size = 100
-        self.flock = Flock(self.screen_surface, flock_size)
+        flocks = 3
+        self.flocks = [Flock(self.screen_surface, flock_size) for i in range(flocks)]
 
 # -- check methods --
 
@@ -85,11 +86,13 @@ class Level:
         if not self.pause:
 
         # -- UPDATES -- player needs to be before tiles for scroll to function properly
-           self.flock.update()
+            for f in self.flocks:
+                f.update()
 
         # -- RENDER --
         # Draw
-        self.flock.draw()
+        for f in self.flocks:
+            f.draw()
 
         # must be after other renders to ensure menu is drawn last
         if self.pause:

@@ -22,14 +22,18 @@ class Boid:
     def __init__(self, surface):
         self.surface = surface
         self.rot_deg = 0
+
         self.pos = [randint(0, surface.get_width()), randint(0, surface.get_height())]  # x, y
         self.vel = [1, 1]  # x, y
-        self.protected_r = 10  # protected distance to steer away from other boids
-        self.visual_r = 50  # distance boid can see other boids
-        self.turn_factor = 0.1   # 0.1 or 0.05 amount boid turns (multiplier)
-        self.screen_margin = 500  # 200 margin from screen edge before turning
         self.min_speed = 1
         self.max_speed = 5  # 3 or 5
+
+        self.protected_r = 10  # protected distance to steer away from other boids
+        self.visual_r = 50  # distance boid can see other boids
+
+        self.turn_factor = 0.1   # 0.1 or 0.05 amount boid turns (multiplier)
+        self.screen_margin = 500  # 200 margin from screen edge before turning
+
         self.matching_factor = 0.02  # loose 0.02 or 0.05 tight, tend towards average velocity (multiplier)
         self.centering_factor = 0.001  # 0.005 tend towards center of visual flock (multiplier)
 
@@ -114,6 +118,9 @@ class Boid:
         # - apply velocity -
         self.pos[0] += self.vel[0]
         self.pos[1] += self.vel[1]
+
+        # - calculate angle (for rendering) -
+        self.rot_deg = math.degrees(math.atan2(self.vel[0], self.vel[1]))
 
     def draw(self):
         point_ahead = 6
