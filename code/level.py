@@ -36,9 +36,10 @@ class Level:
         self.large_font = Font(resource_path(fonts['large_font']), 'white')
 
         # flock
-        flock_size = 100
-        flocks = 3
-        self.flocks = [Flock(self.screen_surface, flock_size) for i in range(flocks)]
+        flock_size = 50
+        flocks = 2
+        use_wind = False
+        self.flocks = [Flock(self.screen_surface, flock_size, use_wind) for i in range(flocks)]
 
 # -- check methods --
 
