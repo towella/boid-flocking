@@ -2,10 +2,10 @@ project_name = "pygame library"
 version = "1.0.0"  # TODO not currently in use, purely placeholder
 
 tile_size = 16  # keep to prevent errors, even if game doesn't need tiles
-screen_width = 30 * tile_size  # arbitrary
-screen_height = 20 * tile_size  # arbitrary
+screen_width = 80 * tile_size  # arbitrary
+screen_height = 50 * tile_size  # arbitrary
 # MUST BE INT
-scaling_factor = 2  # how much the screen is scaled up before blitting on display
+scaling_factor = 1  # how much the screen is scaled up before blitting on display
 
 game_speed = 60  # fps
 
