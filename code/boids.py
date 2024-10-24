@@ -9,15 +9,23 @@ minute = 60 * 60  # 60fps * 60 seconds
 class Flock:
     def __init__(self, surface, flock_size, use_predator=False, use_wind=False):
         self.surface = surface
+        self.chunk_size = 80
+        # each chunk is a list of boids (3dim array) (use + 1 in case rounding down neccessary)
+        self.chunks = [[[] for x in range((self.surface.get_width() // self.chunk_size) + 1)]
+                       for y in range((self.surface.get_height() // self.chunk_size) + 1)]
+
         self.boids = [Boid(self.surface) for b in range(flock_size)]
 
         self.use_predator = use_predator
-        self.predator = BoidPredator(self.surface)
+        if self.use_predator:
+            self.predator = BoidPredator(self.surface)
+        else:
+            self.predator = None
 
         self.max_wind = 3
         self.min_wind_change = int(minute * 0.1)
         self.max_wind_change = int(minute * 0.2)
-        self.wind_transition = 30
+        self.wind_transition = 60
         self.wind_change = randint(self.min_wind_change, self.max_wind_change)
         self.use_wind = use_wind
         self.wind = [0, 0]
@@ -35,15 +43,51 @@ class Flock:
             self.new_wind[1] = randint(-self.max_wind * 100, self.max_wind * 100) / 100
             self.wind_change = randint(self.min_wind_change, self.max_wind_change)
 
-        # update boids
-        self.predator.update(self.boids, self.wind)
+        # update predator
+        if self.use_predator:
+            self.predator.update(self.boids, self.wind)
+        # update boids by chunk
+        # first update chunks (reset first so empty)
+        self.chunks = [[[] for x in range(self.surface.get_width() // self.chunk_size + 1)]
+                       for y in range(self.surface.get_height() // self.chunk_size + 1)]
         for b in self.boids:
-            b.update(self.boids, self.wind, self.predator)
+            pos = b.get_pos()
+            # find boid chunk index
+            y = int(pos[1] // self.chunk_size)
+            x = int(pos[0] // self.chunk_size)
+            print(y, x)
+            self.chunks[y][x].append(b)
+
+        # x, y
+        neighbour_chunks = [[-1, -1], [0, -1], [1, -1],
+                            [-1, 0],  [0, 0],  [1, 0],
+                            [-1, 1],  [0, 1],  [1, 1]]
+        for y in range(len(self.chunks)):
+            for x in range(len(self.chunks[y])):
+                # only do chunk checks for chunks that are not empty
+                if len(self.chunks[y][x]) > 0:
+                    # collect neighbouring boids for chunk
+                    neighbours = []
+                    for n in neighbour_chunks:
+                        # ensure chunk is within range
+                        if 0 <= y + n[1] < len(self.chunks) and 0 <= x + n[0] < len(self.chunks[0]):
+                            ny = y + n[1]
+                            nx = x + n[0]
+                            neighbours += self.chunks[ny][nx]
+                    # update boids in chunk using neighbour list
+                    for b in self.chunks[y][x]:
+                        # self.boids replace with neighbours
+                        b.update(neighbours, self.wind, self.predator)
 
     def draw(self):
+        for y in range(len(self.chunks)):
+            pygame.draw.line(self.surface, "green", (0, y * self.chunk_size), (self.surface.get_width(), y * self.chunk_size), 1)
+            for x in range(len(self.chunks[y])):
+                pygame.draw.line(self.surface, "green", (x * self.chunk_size, 0), (x * self.chunk_size, self.surface.get_height()), 1)
         for b in self.boids:
             b.draw()
-        self.predator.draw()
+        if self.use_predator:
+            self.predator.draw()
 
 
 class Boid:
@@ -57,7 +101,7 @@ class Boid:
         self.max_speed = 5  # 3 or 5
 
         self.protected_r = 10  # protected distance to steer away from other boids
-        self.visual_r = 50  # distance boid can see other boids
+        self.visual_r = 80  # 50 distance boid can see other boids  MUST BE LESS THAN CHUNK SIZE
 
         self.turn_factor = 0.1   # 0.1 or 0.05 amount boid turns (multiplier)
         self.screen_margin = 500  # 200 margin from screen edge before turning
@@ -76,7 +120,6 @@ class Boid:
         # steering
         close_dx = 0
         close_dy = 0
-
         # alignment and cohesion
         avg_x_pos = 0
         avg_y_pos = 0
@@ -101,6 +144,7 @@ class Boid:
                 avg_y_pos += bpos[1]
                 avg_x_vel += bvel[0]
                 avg_y_vel += bvel[1]
+                pygame.draw.line(self.surface, "pink", self.pos, bpos, 1)
 
         # - alignment and cohesion -
         if neighbours > 0:
