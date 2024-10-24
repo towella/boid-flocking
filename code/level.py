@@ -37,9 +37,9 @@ class Level:
 
         # flock
         flock_size = 50
-        flocks = 1
-        use_predator = False
-        use_wind = False
+        flocks = 2
+        use_predator = True
+        use_wind = True
         self.flocks = [Flock(self.screen_surface, flock_size, use_predator, use_wind) for i in range(flocks)]
 
 # -- check methods --

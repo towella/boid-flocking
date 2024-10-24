@@ -10,9 +10,14 @@ class Flock:
     def __init__(self, surface, flock_size, use_predator=False, use_wind=False):
         self.surface = surface
         self.chunk_size = 80
-        # each chunk is a list of boids (3dim array) (use + 1 in case rounding down neccessary)
-        self.chunks = [[[] for x in range((self.surface.get_width() // self.chunk_size) + 1)]
-                       for y in range((self.surface.get_height() // self.chunk_size) + 1)]
+        # chunks height and width include 2 buffer chunks as a margin beyond screen view
+        self.chunks_width = self.surface.get_width() // self.chunk_size + 2  # number of chunks horizontally
+        self.chunks_height = self.surface.get_height() // self.chunk_size + 2  # number of chunks vertically
+        self.chunks = {}
+        # loop from -1 to 1 less than chunk width/height (due to nature of range function)
+        for y in range(-1, self.chunks_height):
+            for x in range(-1, self.chunks_width):
+                self.chunks[(x, y)] = []
 
         self.boids = [Boid(self.surface) for b in range(flock_size)]
 
@@ -46,44 +51,58 @@ class Flock:
         # update predator
         if self.use_predator:
             self.predator.update(self.boids, self.wind)
+
+        # first update chunks (reset so empty)
+        for chunk in self.chunks.keys():
+            self.chunks[chunk] = []
         # update boids by chunk
-        # first update chunks (reset first so empty)
-        self.chunks = [[[] for x in range(self.surface.get_width() // self.chunk_size + 1)]
-                       for y in range(self.surface.get_height() // self.chunk_size + 1)]
         for b in self.boids:
             pos = b.get_pos()
             # find boid chunk index
             y = int(pos[1] // self.chunk_size)
             x = int(pos[0] // self.chunk_size)
-            print(y, x)
-            self.chunks[y][x].append(b)
+            # if boid is outside of chunk area, move inside chunk area outside of screen view and continue
+            # (there is a 1 chunk margin outside of screen view so boids can move in and out of view without
+            # obvious collision detection)
+            # -2 on chunk height and width account for margin chunks
+            # x and y are in domain [0, len]
+            # coords are in domain [-chunk, len*chunk]
+            # hence discrepencies with - 2 and -1. -2 is for x and y (count from 0), -1 is for pixels (count from -chunk)
+            # I am so sorry, this is the only way I could think to make it work
+            if y < -1:
+                b.set_pos((pos[0], -self.chunk_size))
+                y = -1
+            elif y > self.chunks_height - 2:
+                b.set_pos((pos[0], (self.chunks_height - 1) * self.chunk_size))
+                y = self.chunks_height - 2
+            if x < -1:
+                b.set_pos((-self.chunk_size, pos[1]))
+                x = -1
+            elif x > self.chunks_width - 2:
+                b.set_pos(((self.chunks_width - 1) * self.chunk_size, pos[1]))
+                x = self.chunks_width - 2
+            self.chunks[(x, y)].append(b)
 
         # x, y
         neighbour_chunks = [[-1, -1], [0, -1], [1, -1],
                             [-1, 0],  [0, 0],  [1, 0],
                             [-1, 1],  [0, 1],  [1, 1]]
-        for y in range(len(self.chunks)):
-            for x in range(len(self.chunks[y])):
-                # only do chunk checks for chunks that are not empty
-                if len(self.chunks[y][x]) > 0:
-                    # collect neighbouring boids for chunk
-                    neighbours = []
-                    for n in neighbour_chunks:
-                        # ensure chunk is within range
-                        if 0 <= y + n[1] < len(self.chunks) and 0 <= x + n[0] < len(self.chunks[0]):
-                            ny = y + n[1]
-                            nx = x + n[0]
-                            neighbours += self.chunks[ny][nx]
-                    # update boids in chunk using neighbour list
-                    for b in self.chunks[y][x]:
-                        # self.boids replace with neighbours
-                        b.update(neighbours, self.wind, self.predator)
+        for c in self.chunks.keys():
+            # only do chunk checks for chunks that are not empty
+            if len(self.chunks[c]) > 0:
+                # collect neighbouring boids for chunk
+                neighbours = []
+                for n in neighbour_chunks:
+                    # ensure chunk is within range
+                    if 0 <= c[1] + n[1] < self.chunks_height and 0 <= c[0] + n[0] < self.chunks_width:
+                        ny = c[1] + n[1]
+                        nx = c[0] + n[0]
+                        neighbours += self.chunks[(nx, ny)]
+                # update boids in chunk using neighbour list
+                for b in self.chunks[c]:
+                    b.update(neighbours, self.wind, self.predator)
 
     def draw(self):
-        for y in range(len(self.chunks)):
-            pygame.draw.line(self.surface, "green", (0, y * self.chunk_size), (self.surface.get_width(), y * self.chunk_size), 1)
-            for x in range(len(self.chunks[y])):
-                pygame.draw.line(self.surface, "green", (x * self.chunk_size, 0), (x * self.chunk_size, self.surface.get_height()), 1)
         for b in self.boids:
             b.draw()
         if self.use_predator:
@@ -107,7 +126,7 @@ class Boid:
         self.screen_margin = 500  # 200 margin from screen edge before turning
 
         self.matching_factor = 0.02  # loose 0.02 or 0.05 tight, tend towards average velocity (multiplier)
-        self.centering_factor = 0.001  # 0.005 tend towards center of visual flock (multiplier)
+        self.centering_factor = 0.005  # 0.005 0.001 tend towards center of visual flock (multiplier)
         self.escape_factor = 0.2  # factor boids attempt to escape predator (multiplier)
 
     def get_pos(self):
@@ -115,6 +134,14 @@ class Boid:
 
     def get_vel(self):
         return self.vel
+
+    def set_pos(self, pos):
+        self.pos[0] = pos[0]
+        self.pos[1] = pos[1]
+
+    def set_vel(self, vel):
+        self.vel[0] = vel[0]
+        self.vel[1] = vel[1]
 
     def update(self, boids, wind, predator=None):
         # steering
@@ -144,6 +171,7 @@ class Boid:
                 avg_y_pos += bpos[1]
                 avg_x_vel += bvel[0]
                 avg_y_vel += bvel[1]
+                # TODO for testing -->
                 pygame.draw.line(self.surface, "pink", self.pos, bpos, 1)
 
         # - alignment and cohesion -
