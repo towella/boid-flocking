@@ -37,16 +37,17 @@ class Flock:
         self.new_wind = [0.0, 0.0]  # wind for next transition
 
     def update(self):
-        self.wind_change -= 1
-        # lerp wind to new wind if in transitional period
-        if -self.wind_transition <= self.wind_change < 0 and self.use_wind:
-            self.wind[0] = lerp1D(self.wind[0], self.new_wind[0], abs(self.wind_change) / self.wind_transition)
-            self.wind[1] = lerp1D(self.wind[1], self.new_wind[1], abs(self.wind_change) / self.wind_transition)
-        # set new wind for next transition if transition is completed
-        elif self.wind_change < -self.wind_transition and self.use_wind:
-            self.new_wind[0] = randint(-self.max_wind * 100, self.max_wind * 100) / 100
-            self.new_wind[1] = randint(-self.max_wind * 100, self.max_wind * 100) / 100
-            self.wind_change = randint(self.min_wind_change, self.max_wind_change)
+        if self.use_wind:
+            self.wind_change -= 1
+            # lerp wind to new wind if in transitional period
+            if -self.wind_transition <= self.wind_change < 0:
+                self.wind[0] = lerp1D(self.wind[0], self.new_wind[0], abs(self.wind_change) / self.wind_transition)
+                self.wind[1] = lerp1D(self.wind[1], self.new_wind[1], abs(self.wind_change) / self.wind_transition)
+            # set new wind for next transition if transition is completed
+            elif self.wind_change < -self.wind_transition:
+                self.new_wind[0] = randint(-self.max_wind * 100, self.max_wind * 100) / 100
+                self.new_wind[1] = randint(-self.max_wind * 100, self.max_wind * 100) / 100
+                self.wind_change = randint(self.min_wind_change, self.max_wind_change)
 
         # update predator
         if self.use_predator:
@@ -123,9 +124,9 @@ class Boid:
         self.visual_r = 80  # 50 distance boid can see other boids  MUST BE LESS THAN CHUNK SIZE
 
         self.turn_factor = 0.1   # 0.1 or 0.05 amount boid turns (multiplier)
-        self.screen_margin = 500  # 200 margin from screen edge before turning
+        self.screen_margin = 200  # 200 margin from screen edge before turning
 
-        self.matching_factor = 0.02  # loose 0.02 or 0.05 tight, tend towards average velocity (multiplier)
+        self.matching_factor = 0.05  # loose 0.02 or 0.05 tight, tend towards average velocity (multiplier)
         self.centering_factor = 0.005  # 0.005 0.001 tend towards center of visual flock (multiplier)
         self.escape_factor = 0.2  # factor boids attempt to escape predator (multiplier)
 
@@ -171,8 +172,8 @@ class Boid:
                 avg_y_pos += bpos[1]
                 avg_x_vel += bvel[0]
                 avg_y_vel += bvel[1]
-                # TODO for testing -->
-                pygame.draw.line(self.surface, "pink", self.pos, bpos, 1)
+                # TODO for testing
+                # pygame.draw.line(self.surface, "pink", self.pos, bpos, 1)
 
         # - alignment and cohesion -
         if neighbours > 0:
@@ -202,16 +203,16 @@ class Boid:
         # - steer away from screen edges -
         # left margin
         if self.pos[0] < self.screen_margin:
-            self.vel[0] = self.vel[0] + self.turn_factor
+            self.vel[0] += self.turn_factor
         # right margin
         elif self.pos[0] > self.surface.get_width() - self.screen_margin:
-            self.vel[0] = self.vel[0] - self.turn_factor
+            self.vel[0] -= self.turn_factor
         # bottom margin
         if self.pos[1] > self.surface.get_height() - self.screen_margin:
-            self.vel[1] = self.vel[1] - self.turn_factor
+            self.vel[1] -= self.turn_factor
         # top margin
         elif self.pos[1] < self.screen_margin:
-            self.vel[1] = self.vel[1] + self.turn_factor
+            self.vel[1] += self.turn_factor
 
         # - set speed within bounds -
         speed = math.sqrt(self.vel[0]**2 + self.vel[1]**2)
@@ -312,16 +313,16 @@ class BoidPredator:
         # - steer away from screen edges -
         # left margin
         if self.pos[0] < self.screen_margin:
-            self.vel[0] = self.vel[0] + self.turn_factor
+            self.vel[0] += self.turn_factor
         # right margin
         elif self.pos[0] > self.surface.get_width() - self.screen_margin:
-            self.vel[0] = self.vel[0] - self.turn_factor
+            self.vel[0] -= self.turn_factor
         # bottom margin
         if self.pos[1] > self.surface.get_height() - self.screen_margin:
-            self.vel[1] = self.vel[1] - self.turn_factor
+            self.vel[1] -= self.turn_factor
         # top margin
         elif self.pos[1] < self.screen_margin:
-            self.vel[1] = self.vel[1] + self.turn_factor
+            self.vel[1] += self.turn_factor
 
         # - set speed within bounds -
         speed = math.sqrt(self.vel[0] ** 2 + self.vel[1] ** 2)
